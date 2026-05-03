@@ -1,0 +1,132 @@
+<!-- Navigation Bar -->
+<nav class="admin-nav">
+    <div class="nav-container">
+        <div class="nav-right">
+            <button class="menu-toggle" id="menuToggle">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <img src="/assets/images/logo.png" alt="مدعوم" class="admin-logo">
+            <span class="admin-title">لوحة العميل</span>
+        </div>
+        <div class="nav-left">
+            <div class="nav-actions" style="position: relative; display: flex; align-items: center; gap: 1rem;">
+                <div class="system-status" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; background: rgba(255,255,255,0.1); border-radius: 2rem; font-size: 0.85rem; font-weight: 600; color: white;">
+                    <span class="status-dot status-online"></span>
+                    <span>النظام شغال</span>
+                </div>
+                <button class="theme-toggle nav-btn" id="themeToggleBtn" title="تبديل الوضع الليلي/النهاري">
+                    <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="moon-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+                <button class="nav-btn" id="notificationBtn" title="الإشعارات">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    <span id="notificationBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--color-danger); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; border: 2px solid var(--color-primary);">0</span>
+                </button>
+                <div id="notificationMenu" style="display: none; position: absolute; top: 50px; left: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; box-shadow: var(--shadow-lg); z-index: 1001; min-width: 320px; max-width: 350px; overflow: hidden;">
+                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-muted);">
+                        <span style="font-weight: 700; font-size: 0.9rem;">الإشعارات</span>
+                        <button id="markAllReadBtn" style="background: none; border: none; color: var(--color-accent); font-size: 0.75rem; cursor: pointer; font-weight: 600;">تحديد الكل كمقروء</button>
+                    </div>
+                    <div id="notificationList" style="max-height: 400px; overflow-y: auto; padding: 0;">
+                        <div style="padding: 20px; text-align: center; color: var(--color-text-secondary); font-size: 0.85rem;">جاري تحميل الإشعارات...</div>
+                    </div>
+                    <div style="padding: 10px; border-top: 1px solid var(--color-border); text-align: center; background: var(--color-muted);">
+                        <a href="#" style="font-size: 0.8rem; color: var(--color-text-secondary); text-decoration: none; font-weight: 600;">عرض كل الإشعارات</a>
+                    </div>
+                </div>
+                <!-- Wallet/Points Icon -->
+                <div class="wallet-info" id="walletInfo" title="إجمالي نقاطك" style="position: relative; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(255,255,255,0.1); border-radius: 2rem; cursor: pointer;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24;"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg>
+                    <span id="pointsCount" style="font-weight: 700; color: #fbbf24;">0</span>
+                    <div class="wallet-tooltip" id="pointsTooltip" style="display: none; position: absolute; top: 100%; right: 0; background: var(--color-surface); color: var(--color-text); padding: 0.75rem 1rem; border-radius: 0.5rem; box-shadow: var(--shadow); border: 1px solid var(--color-border); margin-top: 0.5rem; white-space: nowrap; z-index: 100;">0 نقطة</div>
+                </div>
+
+                <!-- Language Toggle Button -->
+                <button class="nav-btn" id="languageToggleBtn" title="تغيير اللغة" style="position: relative;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                </button>
+                <div id="languageMenu" style="display: none; position: absolute; top: 50px; left: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; box-shadow: var(--shadow); z-index: 1001; min-width: 140px; overflow: hidden;">
+                    <button id="langArabic" style="display: block; width: 100%; padding: 10px 16px; background: none; border: none; color: var(--color-text); text-align: right; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid var(--color-border);">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="vertical-align: middle; margin-left: 8px; display: none;" class="lang-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        العربية
+                    </button>
+                    <button id="langEnglish" style="display: block; width: 100%; padding: 10px 16px; background: none; border: none; color: var(--color-text); text-align: right; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="vertical-align: middle; margin-left: 8px; display: none;" class="lang-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        English
+                    </button>
+                </div>
+
+                <button class="nav-btn" id="customerAvatarBtn">
+                    <div class="avatar-circle" id="customerInitial">U</div>
+                </button>
+                <div class="admin-avatar-menu" id="customerAvatarMenu" style="display: none; position: absolute; top: 50px; left: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; box-shadow: var(--shadow); z-index: 1001; min-width: 200px; overflow: hidden;">
+                    <a href="#" id="customerProfile" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--color-text); text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; border-bottom: 1px solid var(--color-border);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <span id="profileText">الملف الشخصي</span>
+                    </a>
+                    <a href="#" id="customerAccountSettings" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--color-text); text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; border-bottom: 1px solid var(--color-border);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <span id="settingsText">إعدادات الحساب</span>
+                    </a>
+                    <a href="#" id="customerSecuritySettings" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--color-text); text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; border-bottom: 1px solid var(--color-border);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        <span id="securityText">إعدادات الأمان</span>
+                    </a>
+                    <a href="#" id="customerHelpSupport" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--color-text); text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s; border-bottom: 1px solid var(--color-border);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                        <span id="helpText">الدعم والمساعدة</span>
+                    </a>
+                    <a href="#" id="customerSignOut" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #d9534f; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: background 0.2s;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <span id="logoutText">تسجيل الخروج</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Sidebar -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <span style="font-weight: 800; font-size: 1.2rem;">القائمة الرئيسية</span>
+        <button class="sidebar-close" id="sidebarClose">&times;</button>
+    </div>
+    <div class="sidebar-menu">
+        <a href="#" class="sidebar-item active" data-tab="tickets">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            <span>تذاكري</span>
+        </a>
+        <a href="#" class="sidebar-item" data-tab="rewards">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+            <span>المكافآت والنقاط</span>
+        </a>
+        <a href="#" class="sidebar-item" data-tab="badges">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15l-2 5 2-1 2 1-2-5z"></path><path d="M12 15V3"></path><path d="M12 3L9 6h6l-3-3z"></path><circle cx="12" cy="10" r="7"></circle></svg>
+            <span>الشارات</span>
+        </a>
+        <a href="#" class="sidebar-item" data-tab="profile" id="profileSidebarItem">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>الملف الشخصي</span>
+        </a>
+        <a href="/chat-customer.html" class="sidebar-item">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>المحادثة الفورية</span>
+        </a>
+        <a href="/community.html" class="sidebar-item">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span>مجتمع مدعوم</span>
+        </a>
+        <a href="/knowledge-base.html" class="sidebar-item" id="kbSidebarItem">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            <span>قاعدة المعرفة</span>
+        </a>
+    </div>
+    <div style="padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+        <a href="#" class="sidebar-item" id="sidebarSignOut" style="color: #ff4d4d;">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>تسجيل الخروج</span>
+        </a>
+    </div>
+</aside>

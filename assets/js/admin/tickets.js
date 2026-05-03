@@ -1,0 +1,533 @@
+import { supabase } from '/api-config.js';
+import { checkAdminAuth, updateAdminUI } from './auth.js';
+import { initSidebar } from './sidebar.js';
+import { subscribeToTickets, subscribeToTicketReplies, updateTicketStatus, addTicketReply, fetchTicketReplies, closeTicketWithComment } from '/tickets-service.js';
+import { adminImpersonateUser } from '/auth-client.js';
+
+let user = null;
+let currentTicketId = null;
+let repliesSubscription = null;
+let allTickets = [];
+
+async function init() {
+    initSidebar();
+    user = await checkAdminAuth();
+    if (!user) return;
+
+    updateAdminUI(user);
+    await loadTickets();
+    subscribeToTickets(() => loadTickets());
+    setupModalEvents();
+    setupFilters();
+}
+
+async function loadTickets() {
+    const { data: tickets, error } = await supabase
+        .from('tickets')
+        .select('*, profiles(full_name, email)')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching tickets:", error);
+        return;
+    }
+
+    allTickets = tickets || [];
+    updateStats();
+    renderTickets(allTickets);
+}
+
+function updateStats() {
+    const stats = {
+        total: allTickets.length,
+        open: allTickets.filter(t => t.status === 'open').length,
+        inProgress: allTickets.filter(t => t.status === 'in-progress').length,
+        resolved: allTickets.filter(t => t.status === 'resolved').length
+    };
+
+    document.getElementById('statTotal').textContent = stats.total;
+    document.getElementById('statOpen').textContent = stats.open;
+    document.getElementById('statInProgress').textContent = stats.inProgress;
+    document.getElementById('statResolved').textContent = stats.resolved;
+}
+
+function setupFilters() {
+    const statusFilter = document.getElementById('filterStatus');
+    const priorityFilter = document.getElementById('filterPriority');
+    const searchInput = document.getElementById('searchInput');
+
+    const applyFilters = () => {
+        let filtered = [...allTickets];
+
+        // فلتر الحالة
+        const status = statusFilter.value;
+        if (status !== 'all') {
+            filtered = filtered.filter(t => t.status === status);
+        }
+
+        // فلتر الأولوية
+        const priority = priorityFilter.value;
+        if (priority !== 'all') {
+            filtered = filtered.filter(t => t.priority === priority);
+        }
+
+        // فلتر البحث
+        const search = searchInput.value.trim().toLowerCase();
+        if (search) {
+            filtered = filtered.filter(t => 
+                t.title.toLowerCase().includes(search) ||
+                t.description.toLowerCase().includes(search) ||
+                t.profiles?.full_name?.toLowerCase().includes(search) ||
+                t.profiles?.email?.toLowerCase().includes(search) ||
+                String(t.ticket_number).includes(search)
+            );
+        }
+
+        renderTickets(filtered);
+    };
+
+    statusFilter.addEventListener('change', applyFilters);
+    priorityFilter.addEventListener('change', applyFilters);
+    searchInput.addEventListener('input', applyFilters);
+}
+
+function renderTickets(tickets) {
+    const grid = document.getElementById('ticketsGrid');
+    
+    if (!tickets || tickets.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <p>لا توجد تذاكر تطابق معايير البحث</p>
+            </div>
+        `;
+        return;
+    }
+
+    const statusMap = {
+        'open': 'مفتوحة',
+        'in-progress': 'قيد المعالجة',
+        'resolved': 'محلولة'
+    };
+
+    const priorityMap = {
+        'high': { label: 'عالية', class: 'priority-high' },
+        'medium': { label: 'متوسطة', class: 'priority-medium' },
+        'low': { label: 'منخفضة', class: 'priority-low' }
+    };
+
+    grid.innerHTML = tickets.map(t => {
+        const userName = t.profiles?.full_name || 'مستخدم';
+        const userInitial = userName[0].toUpperCase();
+        const priority = priorityMap[t.priority] || priorityMap['low'];
+
+        return `
+            <div class="ticket-card" data-id="${t.id}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="color: var(--color-text-secondary); font-size: 0.8rem; font-weight: 700;">#${t.ticket_number || '---'}</span>
+                    <span class="status-badge status-${t.status}" style="padding: 0.2rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem;">${statusMap[t.status] || t.status}</span>
+                </div>
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${t.title}</h4>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700;">${userInitial}</div>
+                    <span style="font-size: 0.75rem; color: var(--color-text-secondary);">${userName}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--color-text-secondary);">
+                    <span>أولوية: ${priority.label}</span>
+                    <span>${new Date(t.created_at).toLocaleDateString('ar-EG', {month: 'short', day: 'numeric'})}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Add click handlers and show first ticket by default
+    document.querySelectorAll('.ticket-card').forEach((card, index) => {
+        card.addEventListener('click', () => {
+            // Remove selected class from all cards
+            document.querySelectorAll('.ticket-card').forEach(c => c.classList.remove('selected'));
+            // Add selected class to clicked card
+            card.classList.add('selected');
+            
+            showAdminTicketInPanel(card.dataset.id);
+        });
+    });
+    
+    // Auto-select first ticket
+    if (tickets.length > 0) {
+        const firstCard = grid.querySelector('.ticket-card');
+        if (firstCard) {
+            firstCard.classList.add('selected');
+            showAdminTicketInPanel(tickets[0].id);
+        }
+    }
+}
+
+async function openTicketModal(ticketId) {
+    currentTicketId = ticketId;
+    const modal = document.getElementById('ticketModal');
+    
+    // Fetch full ticket details
+    const { data: ticket, error } = await supabase
+        .from('tickets')
+        .select('*, profiles(full_name, email)')
+        .eq('id', ticketId)
+        .single();
+
+    if (error || !ticket) {
+        alert('خطأ في جلب بيانات التذكرة');
+        return;
+    }
+
+    // Fill Modal Data
+    document.getElementById('modalTicketTitle').innerText = ticket.title;
+    document.getElementById('modalTicketDesc').innerText = ticket.description;
+    document.getElementById('modalTicketNumber').innerText = `#${ticket.ticket_number}`;
+    document.getElementById('modalTicketUser').innerText = ticket.profiles?.full_name || 'مستخدم';
+    document.getElementById('modalTicketEmail').innerText = ticket.profiles?.email || '';
+    document.getElementById('modalTicketDate').innerText = new Date(ticket.created_at).toLocaleString('ar-EG');
+    
+    const statusMap = { 'open': 'مفتوحة', 'in-progress': 'قيد المعالجة', 'resolved': 'محلولة' };
+    const statusEl = document.getElementById('modalTicketStatus');
+    statusEl.innerText = statusMap[ticket.status] || ticket.status;
+    statusEl.className = `detail-value status-badge status-${ticket.status}`;
+
+    // Handle Image
+    const imgContainer = document.getElementById('modalTicketImageContainer');
+    if (ticket.image_url) {
+        imgContainer.style.display = 'block';
+        document.getElementById('modalTicketImage').src = ticket.image_url;
+        document.getElementById('modalTicketImageLink').href = ticket.image_url;
+    } else {
+        imgContainer.style.display = 'none';
+    }
+
+    // Impersonate Button
+    document.getElementById('impersonateUserBtn').onclick = () => impersonateUser(ticket.user_id);
+    
+    // Resolve Button
+    const resolveBtn = document.getElementById('resolveTicketBtn');
+    if (ticket.status === 'resolved') {
+        resolveBtn.innerText = 'إعادة فتح التذكرة';
+        resolveBtn.onclick = () => changeStatus('open');
+    } else {
+        resolveBtn.innerText = 'إغلاق التذكرة (تم الحل)';
+        resolveBtn.onclick = () => showCloseModal();
+    }
+
+    // Load Replies
+    loadReplies(ticketId);
+
+    // Subscribe to real-time replies updates
+    if (repliesSubscription) {
+        repliesSubscription.unsubscribe();
+    }
+    repliesSubscription = subscribeToTicketReplies(ticketId, () => {
+        loadReplies(ticketId);
+    });
+
+    modal.style.display = 'block';
+}
+
+async function loadReplies(ticketId) {
+    const container = document.getElementById('ticketRepliesList');
+    container.innerHTML = '<div style="text-align:center; padding:1rem; color:#999;">جاري تحميل الردود...</div>';
+    
+    try {
+        const replies = await fetchTicketReplies(ticketId);
+        if (!replies || replies.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:1rem; color:#999; font-size:0.8rem;">لا توجد ردود بعد.</div>';
+            return;
+        }
+
+        container.innerHTML = replies.map(r => {
+            const isAdmin = r.profiles?.role === 'admin';
+            const typeClass = r.is_internal ? 'reply-internal' : (isAdmin ? 'reply-admin' : 'reply-user');
+            const typeLabel = r.is_internal ? '<span class="internal-tag">ملاحظة داخلية</span>' : '';
+            
+            return `
+                <div class="reply-item ${typeClass}">
+                    <div class="reply-header">
+                        <span style="font-weight:700;">${r.profiles?.full_name || 'مستخدم'} ${typeLabel}</span>
+                        <span>${new Date(r.created_at).toLocaleString('ar-EG', {hour:'2-digit', minute:'2-digit', day:'numeric', month:'short'})}</span>
+                    </div>
+                    <div class="reply-content">${r.message}</div>
+                </div>
+            `;
+        }).join('');
+        container.scrollTop = container.scrollHeight;
+    } catch (err) {
+        container.innerHTML = '<div style="color:red; text-align:center;">فشل تحميل الردود</div>';
+    }
+}
+
+async function changeStatus(newStatus) {
+    if (!currentTicketId) return;
+    try {
+        await updateTicketStatus(currentTicketId, newStatus);
+        openTicketModal(currentTicketId); // Refresh modal
+        await loadTickets(); // Refresh list
+    } catch (err) {
+        alert('فشل تحديث الحالة');
+    }
+}
+
+function showCloseModal() {
+    const closeModal = document.getElementById('closeTicketModal');
+    if (closeModal) {
+        closeModal.style.display = 'block';
+        document.getElementById('closeTicketComment').value = '';
+    }
+}
+
+async function closeTicket() {
+    if (!currentTicketId) return;
+    
+    const comment = document.getElementById('closeTicketComment').value.trim();
+    
+    try {
+        await closeTicketWithComment(currentTicketId, comment);
+        document.getElementById('closeTicketModal').style.display = 'none';
+        openTicketModal(currentTicketId); // Refresh modal
+        await loadTickets(); // Refresh list
+    } catch (err) {
+        alert('فشل إغلاق التذكرة: ' + err.message);
+    }
+}
+
+function setupModalEvents() {
+    const modal = document.getElementById('ticketModal');
+    const closeBtn = document.getElementById('closeModal');
+    
+    closeBtn.onclick = () => {
+        modal.style.display = 'none';
+        if (repliesSubscription) {
+            repliesSubscription.unsubscribe();
+        }
+    };
+    
+    window.onclick = (event) => {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+            if (repliesSubscription) {
+                repliesSubscription.unsubscribe();
+            }
+        }
+    };
+
+    // Send Public Reply
+    document.getElementById('sendPublicReply').onclick = async () => {
+        const text = document.getElementById('replyText').value.trim();
+        if (!text) return;
+        
+        try {
+            await addTicketReply(currentTicketId, text, false);
+            document.getElementById('replyText').value = '';
+            loadReplies(currentTicketId);
+            await loadTickets();
+        } catch (err) {
+            alert('فشل إرسال الرد');
+        }
+    };
+
+    // Send Internal Note
+    document.getElementById('sendInternalNote').onclick = async () => {
+        const text = document.getElementById('replyText').value.trim();
+        if (!text) return;
+        
+        try {
+            await addTicketReply(currentTicketId, text, true);
+            document.getElementById('replyText').value = '';
+            loadReplies(currentTicketId);
+        } catch (err) {
+            alert('فشل إضافة الملاحظة');
+        }
+    };
+
+    // Close Ticket Modal Events
+    const closeTicketModal = document.getElementById('closeTicketModal');
+    if (closeTicketModal) {
+        const closeCloseBtn = document.getElementById('closeCloseTicketModal');
+        if (closeCloseBtn) {
+            closeCloseBtn.onclick = () => closeTicketModal.style.display = 'none';
+        }
+
+        document.getElementById('confirmCloseTicket').onclick = closeTicket;
+
+        window.onclick = (event) => {
+            if (event.target == closeTicketModal) {
+                closeTicketModal.style.display = 'none';
+            }
+        };
+    }
+}
+
+async function showAdminTicketInPanel(ticketId) {
+    currentTicketId = ticketId;
+    const panel = document.getElementById('adminTicketDetailsContent');
+    if (!panel) return;
+    
+    // Fetch full ticket details
+    const { data: ticket, error } = await supabase
+        .from('tickets')
+        .select('*, profiles(full_name, email, id)')
+        .eq('id', ticketId)
+        .single();
+
+    if (error || !ticket) {
+        panel.innerHTML = '<p style="text-align:center; color:red;">خطأ في جلب بيانات التذكرة</p>';
+        return;
+    }
+    
+    const statusMap = {
+        'open': 'مفتوحة',
+        'in-progress': 'قيد المعالجة',
+        'resolved': 'محلولة'
+    };
+    
+    const priorityMap = {
+        'high': 'عالية',
+        'medium': 'متوسطة',
+        'low': 'منخفضة'
+    };
+    
+    panel.style.display = 'block';
+    panel.style.alignItems = 'flex-start';
+    panel.style.justifyContent = 'flex-start';
+    
+    panel.innerHTML = `
+        <div style="width: 100%;">
+            <!-- Header -->
+            <div style="border-bottom: 2px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <h2 style="margin: 0; font-size: 1.3rem; line-height: 1.4;">${ticket.title}</h2>
+                    <span class="status-badge status-${ticket.status}" style="padding: 0.3rem 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; white-space: nowrap;">${statusMap[ticket.status]}</span>
+                </div>
+                <div style="display: flex; gap: 1.5rem; font-size: 0.85rem; color: var(--color-text-secondary); flex-wrap: wrap;">
+                    <span>رقم التذكرة: <strong>#${ticket.ticket_number || '---'}</strong></span>
+                    <span>الأولوية: <strong style="color: var(--color-accent);">${priorityMap[ticket.priority]}</strong></span>
+                    <span>${new Date(ticket.created_at).toLocaleDateString('ar-EG')}</span>
+                </div>
+                <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--color-muted); border-radius: 0.5rem;">
+                    <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 0.25rem;">العميل</div>
+                    <div style="font-weight: 700;">${ticket.profiles?.full_name || 'مستخدم'}</div>
+                    <div style="font-size: 0.85rem; color: var(--color-text-secondary);">${ticket.profiles?.email || ''}</div>
+                </div>
+            </div>
+            
+            <!-- Description -->
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 0.5rem;">وصف المشكلة</h3>
+                <p style="line-height: 1.6; white-space: pre-wrap;">${ticket.description}</p>
+            </div>
+            
+            ${ticket.image_url ? `
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 0.5rem;">المرفقات</h3>
+                <img src="${ticket.image_url}" style="max-width: 100%; border-radius: 0.5rem; border: 1px solid var(--color-border);">
+            </div>
+            ` : ''}
+            
+            <!-- Status Control -->
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--color-muted); border-radius: 0.75rem;">
+                <label style="display: block; font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">تغيير حالة التذكرة</label>
+                <select id="panelStatusSelect" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font-weight: 600;">
+                    <option value="open" ${ticket.status === 'open' ? 'selected' : ''}>مفتوحة</option>
+                    <option value="in-progress" ${ticket.status === 'in-progress' ? 'selected' : ''}>قيد المعالجة</option>
+                    <option value="resolved" ${ticket.status === 'resolved' ? 'selected' : ''}>محلولة</option>
+                </select>
+            </div>
+            
+            <!-- Replies Section -->
+            <div style="border-top: 2px solid var(--color-border); padding-top: 1.5rem;">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">الردود</h3>
+                <div id="adminPanelRepliesList" style="max-height: 250px; overflow-y: auto; margin-bottom: 1rem; padding-left: 0.5rem;">
+                    <div style="text-align:center; padding:1rem; color: var(--color-text-secondary);">جاري تحميل الردود...</div>
+                </div>
+                
+                <div>
+                    <textarea id="adminPanelReplyText" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text); font-family: inherit; min-height: 70px; resize: vertical;" placeholder="اكتب ردك هنا..."></textarea>
+                    <button id="adminPanelSendReply" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;">إرسال الرد</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Load replies
+    await loadAdminRepliesInPanel(ticket.id);
+    
+    // Setup status change
+    const statusSelect = document.getElementById('panelStatusSelect');
+    if (statusSelect) {
+        statusSelect.addEventListener('change', async () => {
+            try {
+                await updateTicketStatus(ticket.id, statusSelect.value);
+                // Refresh tickets list to show updated status
+                await loadTickets();
+            } catch (err) {
+                alert('فشل تغيير الحالة: ' + err.message);
+            }
+        });
+    }
+    
+    // Setup reply button
+    const sendBtn = document.getElementById('adminPanelSendReply');
+    const replyInput = document.getElementById('adminPanelReplyText');
+    if (sendBtn && replyInput) {
+        sendBtn.onclick = async () => {
+            const message = replyInput.value.trim();
+            if (!message) return;
+            
+            try {
+                sendBtn.disabled = true;
+                sendBtn.textContent = 'جاري الإرسال...';
+                await addTicketReply(ticket.id, message, false);
+                replyInput.value = '';
+                await loadAdminRepliesInPanel(ticket.id);
+            } catch (err) {
+                alert('فشل إرسال الرد: ' + err.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'إرسال الرد';
+            }
+        };
+    }
+}
+
+async function loadAdminRepliesInPanel(ticketId) {
+    const list = document.getElementById('adminPanelRepliesList');
+    if (!list) return;
+    
+    list.innerHTML = '<div style="text-align:center; padding:1rem; color: var(--color-text-secondary);">جاري تحميل الردود...</div>';
+    
+    try {
+        const replies = await fetchTicketReplies(ticketId);
+        if (replies.length === 0) {
+            list.innerHTML = '<p style="text-align: center; color: var(--color-text-secondary); font-size: 0.85rem; padding: 1rem;">لا توجد ردود بعد</p>';
+            return;
+        }
+        
+        list.innerHTML = replies.map(r => `
+            <div class="reply-item ${r.profiles?.role === 'admin' ? 'reply-admin' : 'reply-user'}" style="margin-bottom: 0.75rem; padding: 0.75rem; border-radius: 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.75rem;">
+                    <strong style="color: var(--color-accent);">${r.profiles?.role === 'admin' ? 'الدعم الفني' : (r.profiles?.full_name || 'العميل')}</strong>
+                    <span style="color: var(--color-text-secondary);">${new Date(r.created_at).toLocaleString('ar-EG', {hour:'2-digit', minute:'2-digit', day: 'numeric', month: 'short'})}</span>
+                </div>
+                <div style="font-size: 0.85rem; line-height: 1.5;">${r.message}</div>
+            </div>
+        `).join('');
+        list.scrollTop = list.scrollHeight;
+    } catch (err) {
+        list.innerHTML = '<p style="text-align:center; color:red;">فشل تحميل الردود</p>';
+    }
+}
+
+async function impersonateUser(id) { 
+    if (!id) return alert('لا يمكن الدخول لحساب ضيف');
+    const { data: targetUser } = await supabase.from('profiles').select('email').eq('id', id).single();
+    const activityModule = await import('/activity-service.js');
+    activityModule.logActivity('impersonate', { target_user_id: id, target_email: targetUser?.email });
+    await adminImpersonateUser(id);
+    location.href = '/customer-dashboard.html';
+}
+
+init();

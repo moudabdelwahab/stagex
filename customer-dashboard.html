@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة العميل - منصة مدعوم</title>
+    <link rel="icon" type="image/png" href="/assets/images/logo.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/assets/js/admin/admin-style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('theme-preference') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+    <script src="theme-manager.js" defer></script>
+    <script src="language-manager.js"></script>
+    <script src="/error-tracker.js"></script>
+    <script type="module" src="/ads-ticker.js"></script>
+    <link rel="stylesheet" href="robot.css">
+    <link rel="stylesheet" href="chat-widget.css">
+    <style>
+        .profile-section { background: var(--color-surface); padding: 2rem; border-radius: 1rem; box-shadow: var(--shadow-sm); margin-top: 2rem; border: 1px solid var(--color-border); }
+        .nav-tabs { display: none; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-overlay); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--color-surface); padding: 2.5rem; border-radius: 1.25rem; width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: var(--shadow); border: 1px solid var(--color-border); color: var(--color-text); }
+        .wallet-info { position: relative; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--color-muted); border-radius: 2rem; cursor: pointer; }
+        .wallet-tooltip { display: none; position: absolute; top: 100%; right: 0; background: var(--color-surface); color: var(--color-text); padding: 0.75rem 1rem; border-radius: 0.5rem; box-shadow: var(--shadow); border: 1px solid var(--color-border); margin-top: 0.5rem; white-space: nowrap; z-index: 100; }
+        .wallet-info:hover .wallet-tooltip { display: block; }
+        .reply-item { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; background: var(--color-muted); }
+        .reply-admin { border-right: 4px solid var(--color-accent); }
+        .reply-user { border-right: 4px solid var(--color-success); }
+        .avatar-upload { position: relative; width: 100px; height: 100px; margin: 0 auto 2rem; }
+        .avatar-preview { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--color-accent); }
+        .avatar-edit-btn { position: absolute; bottom: 0; right: 0; background: var(--color-accent); color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid var(--color-surface); }
+        .ticket-card { 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.75rem;
+            border: 2px solid transparent;
+            background: var(--color-muted);
+        }
+        .ticket-card:hover { 
+            background: var(--color-surface);
+            border-color: var(--color-accent);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .ticket-card.selected {
+            background: var(--color-surface);
+            border-color: var(--color-accent);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+        }
+        .view-ticket-btn { margin-top: 1rem; width: 100%; }
+        .menu-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; color: var(--color-text); text-decoration: none; transition: all 0.2s; font-size: 0.9rem; font-weight: 600; }
+        .menu-item:hover { background: var(--hover-bg); color: var(--color-accent); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; position: relative; }
+        .status-dot::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; animation: statusPulse 2s infinite; }
+        .status-online { background-color: #22c55e; }
+        .status-online::after { background-color: #22c55e; }
+        @keyframes statusPulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2.5); opacity: 0; } }
+        @media (max-width: 768px) {
+            #mobileMenuToggle { display: flex !important; }
+        }
+        /* Tooltip hover styles for wallet info in sidebar */
+        #walletInfo:hover #pointsTooltip { display: block !important; }
+
+        /* Notification Styles */
+        #notificationMenu {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            animation: slideDown 0.2s ease-out;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .notification-item {
+            border-bottom: 1px solid var(--color-border);
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .notification-item:hover {
+            background: var(--hover-bg);
+        }
+        .notification-item.unread {
+            background: rgba(0, 119, 204, 0.05);
+        }
+        .notification-item.unread::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--color-accent);
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Chat Widget -->
+    <div class="floating-chat-widget" id="floatingChatWidget">
+        <button class="chat-bubble-btn" id="chatBubbleBtn" title="فتح الدردشة">
+            <div class="chat-bubble-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </div>
+        </button>
+
+        <div class="chat-widget-panel" id="chatWidgetPanel">
+            <div class="chat-widget-header">
+                <div class="chat-widget-header-title">
+                    <div class="chat-widget-header-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="19" cy="12" r="1"></circle>
+                            <circle cx="5" cy="12" r="1"></circle>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>مدعوم</h3>
+                        <p>هنا لمساعدتك في أي وقت</p>
+                    </div>
+                </div>
+                <button class="chat-widget-close" id="chatWidgetClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="chat-widget-body" id="chatWidgetBody">
+                <div class="chat-widget-message bot">
+                    <div class="chat-widget-bubble">
+                        مرحباً! كيف يمكننا مساعدتك اليوم؟
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-widget-footer">
+                <a href="https://wa.me/201274000741?text=مرحباً%20بي%20أتواصل%20مع%20منصة%20مدعوم" target="_blank" class="chat-widget-option">
+                    <span class="chat-widget-option-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                    </span>
+                    <span class="chat-widget-option-text">الاستمرار على واتساب</span>
+                </a>
+                <a href="/chat-customer.html" class="chat-widget-option">
+                    <span class="chat-widget-option-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </span>
+                    <span class="chat-widget-option-text">الدردشة المباشرة</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar-container"></div>
+
+    <!-- Ticket Detail Modal for Customer -->
+    <div id="ticketDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem;">
+                <h2 id="detailTicketTitle" style="margin: 0;">تفاصيل التذكرة</h2>
+                <span class="close-modal" id="closeDetailModal" style="font-size: 2rem; cursor: pointer;">&times;</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 250px; gap: 2rem;">
+                <div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="font-size: 0.8rem; color: var(--color-text-secondary); font-weight: 700;">الوصف</label>
+                        <p id="detailTicketDesc" style="margin-top: 0.5rem; line-height: 1.6; white-space: pre-wrap;"></p>
+                    </div>
+                    
+                    <div id="detailTicketImageContainer" style="display: none; margin-bottom: 1.5rem;">
+                        <label style="font-size: 0.8rem; color: var(--color-text-secondary); font-weight: 700;">المرفقات</label>
+                        <div style="margin-top: 0.5rem;">
+                            <img id="detailTicketImage" style="max-width: 100%; border-radius: 0.5rem; border: 1px solid var(--color-border);">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem; border-top: 1px solid var(--color-border); padding-top: 1.5rem;">
+                        <h3 style="font-size: 1rem; margin-bottom: 1rem;">الردود</h3>
+                        <div id="detailRepliesList" style="max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">
+                            <!-- Replies will be loaded here -->
+                        </div>
+                        
+                        <div id="detailReplyForm" style="margin-top: 1.5rem;">
+                            <textarea id="detailReplyText" style="width: 100%; padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text); font-family: inherit; min-height: 80px;" placeholder="اكتب ردك هنا..."></textarea>
+                            <button id="sendDetailReply" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%;">إرسال الرد</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: var(--color-muted); padding: 1.5rem; border-radius: 1rem; height: fit-content;">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.75rem; color: var(--color-text-secondary);">رقم التذكرة</label>
+                        <div id="detailTicketNumber" style="font-weight: 700;">#0</div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.75rem; color: var(--color-text-secondary);">الحالة</label>
+                        <div id="detailTicketStatus"></div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.75rem; color: var(--color-text-secondary);">تاريخ الإنشاء</label>
+                        <div id="detailTicketDate" style="font-weight: 600; font-size: 0.9rem;"></div>
+                    </div>
+                    
+                    <div id="ratingSection" style="display: none; margin-top: 1.5rem; border-top: 1px solid var(--color-border); padding-top: 1rem;">
+                        <label style="font-size: 0.75rem; color: var(--color-text-secondary);">تقييمك للخدمة</label>
+                        <div class="star-rating" id="detailStarRating" style="display: flex; gap: 0.25rem; margin-top: 0.5rem; color: #fbbf24; font-size: 1.25rem;">
+                            <span class="star" data-value="1">★</span>
+                            <span class="star" data-value="2">★</span>
+                            <span class="star" data-value="3">★</span>
+                            <span class="star" data-value="4">★</span>
+                            <span class="star" data-value="5">★</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="admin-main">
+        <header class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 id="welcomeUser" style="font-weight: 800; font-size: 1.75rem; margin: 0;">مرحباً بك</h1>
+                <p style="color: var(--color-text-secondary); margin-top: 0.5rem;">لوحة تحكم العميل</p>
+            </div>
+            <button class="menu-toggle" id="mobileMenuToggle" style="display: none; background: var(--color-primary); color: white; border: none; padding: 0.5rem; border-radius: 0.5rem; cursor: pointer;">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+        </header>
+
+        <div class="nav-tabs">
+            <div class="nav-tab active" data-tab="tickets">تذاكري</div>
+            <div class="nav-tab" data-tab="rewards">المكافآت والنقاط</div>
+            <div class="nav-tab" data-tab="badges">الشارات</div>
+            <div class="nav-tab" data-tab="profile" id="profileTab">الملف الشخصي</div>
+            <div class="nav-tab" onclick="window.location.href='/chat-customer.html'">المحادثة الفورية</div>
+        </div>
+
+        <!-- Tickets Tab -->
+        <div id="ticketsTabContent" class="tab-content active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h1>تذاكري</h1>
+                <button id="openCreateTicket" class="btn btn-primary">إنشاء تذكرة جديدة</button>
+            </div>
+            <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="stat-card" style="background: var(--color-surface); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center;">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 0.5rem;">إجمالي التذاكر</p>
+                    <p id="userTotalTickets" style="font-size: 2rem; font-weight: 800;">0</p>
+                </div>
+                <div class="stat-card" style="background: var(--color-surface); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center;">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 0.5rem;">قيد المعالجة</p>
+                    <p id="userInProgressTickets" style="font-size: 2rem; font-weight: 800; color: var(--color-accent);">0</p>
+                </div>
+                <div class="stat-card" style="background: var(--color-surface); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center;">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 0.5rem;">المحلولة</p>
+                    <p id="userResolvedTickets" style="font-size: 2rem; font-weight: 800; color: var(--color-success);">0</p>
+                </div>
+            </div>
+            <!-- Tickets Layout: Vertical List + Details Panel -->
+            <div style="display: grid; grid-template-columns: 400px 1fr; gap: 1.5rem; height: 600px;">
+                <!-- Tickets List (Right Side) -->
+                <div style="background: var(--color-surface); border-radius: 1rem; border: 1px solid var(--color-border); overflow: hidden; display: flex; flex-direction: column;">
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--color-border); background: var(--color-muted);">
+                        <h3 style="margin: 0; font-size: 1rem;">قائمة التذاكر</h3>
+                    </div>
+                    <div id="userTicketsList" style="overflow-y: auto; flex: 1; padding: 0.5rem;">
+                        <!-- Tickets will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- Ticket Details Panel (Left Side) -->
+                <div id="ticketDetailsPanel" style="background: var(--color-surface); border-radius: 1rem; border: 1px solid var(--color-border); overflow: hidden; display: flex; flex-direction: column;">
+                    <div id="ticketDetailsContent" style="flex: 1; overflow-y: auto; padding: 2rem; display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary);">
+                        <div style="text-align: center;">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin: 0 auto 1rem;">
+                                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            <p style="font-size: 1.1rem; font-weight: 600;">اختر تذكرة لعرض التفاصيل</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">انقر على أي تذكرة من القائمة</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rewards Tab -->
+        <div id="rewardsTabContent" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h1 style="margin: 0;">المكافآت والنقاط</h1>
+                <div id="proBadgeInfo" style="display: none; align-items: center; gap: 0.5rem; background: linear-gradient(45deg, #f59e0b, #ef4444); color: white; padding: 0.5rem 1rem; border-radius: 2rem; font-weight: 700; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                    <span>PRO MEMBER</span>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="stat-card" style="background: var(--color-surface); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center;">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 0.5rem;">إجمالي النقاط</p>
+                    <p id="rewardsTotalPoints" style="font-size: 2rem; font-weight: 800; color: #fbbf24;">0</p>
+                </div>
+                <div class="stat-card" style="background: var(--color-surface); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center;">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 0.5rem;">النقاط المتاحة</p>
+                    <p id="rewardsAvailablePoints" style="font-size: 2rem; font-weight: 800; color: var(--color-success);">0</p>
+                </div>
+                <div class="stat-card" style="background: var(--color-surface); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center;">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 0.5rem;">نقاط قيد المراجعة</p>
+                    <p id="rewardsPendingPoints" style="font-size: 2rem; font-weight: 800; color: var(--color-accent);">0</p>
+                </div>
+                <div class="stat-card" style="background: var(--color-surface); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center;">
+                    <p style="color: var(--color-text-secondary); margin-bottom: 0.5rem;">مستوى العضوية</p>
+                    <p id="rewardsMemberLevel" style="font-size: 1.5rem; font-weight: 800; margin-top: 0.5rem;">عضو جديد</p>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 2rem; margin-top: 2rem;">
+                <!-- New Report Form -->
+                <div style="background: var(--color-surface); padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border);">
+                    <h2 style="margin-bottom: 1.5rem;">تقديم بلاغ عن مشكلة</h2>
+                    <form id="newReportForm">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem;">نوع المشكلة</label>
+                            <select id="reportProblemType" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text);">
+                                <option value="bug">خطأ برمجى (Bug)</option>
+                                <option value="security">ثغرة أمنية</option>
+                                <option value="suggestion">اقتراح تحسين</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem;">درجة الخطورة</label>
+                            <select id="reportSeverity" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text);">
+                                <option value="low">منخفضة (10 نقاط)</option>
+                                <option value="medium">متوسطة (25 نقطة)</option>
+                                <option value="high">عالية (50 نقطة)</option>
+                                <option value="critical">حرجة (100 نقطة)</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem;">العنوان</label>
+                            <input type="text" id="reportTitle" placeholder="عنوان مختصر للمشكلة" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text);">
+                        </div>
+                        <div style="margin-bottom: 1.5rem;">
+                            <label style="display: block; margin-bottom: 0.5rem;">الوصف</label>
+                            <textarea id="reportDescription" rows="4" placeholder="اشرح المشكلة بالتفصيل وكيفية تكرارها..." style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--color-border); background: var(--color-muted); color: var(--color-text); resize: vertical;"></textarea>
+                        </div>
+                        <div style="background: var(--color-muted); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>النقاط المتوقعة:</span>
+                            <span id="estimatedReportPoints" style="font-weight: 700; color: var(--color-accent);">10 نقاط</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">إرسال البلاغ</button>
+                    </form>
+                </div>
+
+                <!-- Reports List -->
+                <div style="background: var(--color-surface); padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border);">
+                    <h2 style="margin-bottom: 1.5rem;">بلاغاتي السابقة</h2>
+                    <div id="reportsListContainer" style="max-height: 600px; overflow-y: auto; padding-left: 0.5rem;">
+                        <p class="empty-state">جاري تحميل البلاغات...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Badges Tab -->
+        <div id="badgesTabContent" class="tab-content">
+            <div style="margin-bottom: 2rem;">
+                <h1>شاراتي</h1>
+                <p style="color: var(--color-text-secondary);">اجمع الشارات من خلال تفاعلك مع الدعم الفني</p>
+            </div>
+            <div id="badgesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem;">
+                <!-- Badge: First Ticket -->
+                <div class="badge-card" id="badge-first-ticket" style="background: var(--color-surface); padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center; opacity: 0.4; filter: grayscale(1); transition: all 0.3s;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🎫</div>
+                    <h3 style="margin-bottom: 0.5rem;">أول تذكرة</h3>
+                    <p style="font-size: 0.85rem; color: var(--color-text-secondary);">تم الحصول عليها عند إنشاء أول تذكرة دعم</p>
+                </div>
+                <!-- Badge: 10 Tickets -->
+                <div class="badge-card" id="badge-ten-tickets" style="background: var(--color-surface); padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center; opacity: 0.4; filter: grayscale(1); transition: all 0.3s;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔥</div>
+                    <h3 style="margin-bottom: 0.5rem;">المستخدم النشط</h3>
+                    <p style="font-size: 0.85rem; color: var(--color-text-secondary);">تم الحصول عليها عند إنشاء 10 تذاكر دعم</p>
+                </div>
+                <!-- Badge: Fast Responder -->
+                <div class="badge-card" id="badge-fast-responder" style="background: var(--color-surface); padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border); text-align: center; opacity: 0.4; filter: grayscale(1); transition: all 0.3s;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⚡</div>
+                    <h3 style="margin-bottom: 0.5rem;">المتفاعل السريع</h3>
+                    <p style="font-size: 0.85rem; color: var(--color-text-secondary);">تم الحصول عليها عند الرد السريع على التذاكر</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Tab -->
+        <div id="profileTabContent" class="tab-content">
+            <div class="profile-section">
+                <h2>تعديل الملف الشخصي</h2>
+                <form id="profileForm" style="margin-top: 1.5rem;">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">الاسم الكامل</label>
+                        <input type="text" id="profileFullName" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 0.5rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">رقم الهاتف</label>
+                        <input type="tel" id="profilePhone" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 0.5rem;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">حفظ التغييرات</button>
+                </form>
+                <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--color-border);">
+                <h2>الأمان والتحقق بخطوتين (2FA)</h2>
+                <p style="margin: 1rem 0; color: var(--color-text-secondary); font-size: 0.9rem;">قم بتعزيز أمان حسابك من خلال تفعيل التحقق بخطوتين وإدارة الأجهزة الموثوقة.</p>
+                <a href="/customer-security-settings.html" class="btn btn-primary" style="display: inline-block; text-decoration: none; text-align: center; background: #667eea; margin-bottom: 1.5rem; width: 100%;">إعدادات الأمان المتقدمة</a>
+                
+                <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--color-border);">
+                <h2>تغيير كلمة المرور</h2>
+                <form id="changePasswordForm" style="margin-top: 1.5rem;">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">كلمة المرور الجديدة</label>
+                        <input type="password" id="newPassword" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 0.5rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem;">تأكيد كلمة المرور</label>
+                        <input type="password" id="confirmPassword" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 0.5rem;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">تحديث كلمة المرور</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Ticket Modal -->
+    <div id="createTicketModal" class="modal">
+        <div class="modal-content">
+            <h2>إنشاء تذكرة جديدة</h2>
+            <form id="userCreateTicketForm" style="margin-top: 1.5rem;">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem;">العنوان</label>
+                    <input type="text" id="userTicketTitle" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 0.5rem;" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem;">الوصف</label>
+                    <textarea id="userTicketDescription" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 0.5rem; min-height: 100px;" required></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem;">الأولوية</label>
+                    <select id="userTicketPriority" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: 0.5rem;">
+                        <option value="low">منخفضة</option>
+                        <option value="medium" selected>متوسطة</option>
+                        <option value="high">عالية</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" class="btn btn-secondary close-modal" style="flex: 1;">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">إرسال التذكرة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ticket Detail Modal -->
+    <!-- Not implemented yet - This modal structure duplicates the one above and is not fully wired -->
+    <!-- The functional modal is defined at the top of the body with id="ticketDetailModal" -->
+
+    <script type="module" src="customer-dashboard.js"></script>
+    <script>
+        // Floating Chat Widget Logic
+        const chatBubbleBtn = document.getElementById('chatBubbleBtn');
+        const chatWidgetPanel = document.getElementById('chatWidgetPanel');
+        const chatWidgetClose = document.getElementById('chatWidgetClose');
+
+        if (chatBubbleBtn && chatWidgetPanel && chatWidgetClose) {
+            chatBubbleBtn.addEventListener('click', () => {
+                chatWidgetPanel.classList.toggle('active');
+            });
+
+            chatWidgetClose.addEventListener('click', () => {
+                chatWidgetPanel.classList.remove('active');
+            });
+
+            // Close widget when clicking outside
+            document.addEventListener('click', (e) => {
+                const widget = document.getElementById('floatingChatWidget');
+                if (widget && !widget.contains(e.target)) {
+                    chatWidgetPanel.classList.remove('active');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

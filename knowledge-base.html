@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قاعدة المعرفة - منصة مدعوم</title>
+    <link rel="icon" type="image/png" href="/assets/images/logo.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/assets/js/admin/admin-style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('theme-preference') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+    <script src="theme-manager.js" defer></script>
+    <style>
+        .kb-container {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .kb-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 3rem;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+            border-radius: 1.5rem;
+            color: white;
+            box-shadow: var(--shadow-lg);
+        }
+        .search-box {
+            max-width: 600px;
+            margin: -2rem auto 2rem;
+            position: relative;
+            z-index: 10;
+        }
+        .search-input {
+            width: 100%;
+            padding: 1.25rem 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-size: 1.1rem;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 4px rgba(0, 119, 204, 0.15);
+        }
+        .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .article-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .article-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--color-accent);
+            box-shadow: var(--shadow-md);
+        }
+        .article-category {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--color-accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .article-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .article-excerpt {
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--color-surface);
+            padding: 2.5rem;
+            border-radius: 1.25rem;
+            width: 100%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--color-border);
+        }
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            font-size: 2rem;
+            cursor: pointer;
+            color: var(--color-text-secondary);
+        }
+        .article-full-content {
+            line-height: 1.8;
+            font-size: 1.05rem;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+
+    <main class="admin-main">
+        <div class="kb-container">
+            <header class="kb-header">
+                <h1>قاعدة المعرفة</h1>
+                <p>ابحث عن إجابات لأسئلتك التقنية بكل سهولة</p>
+            </header>
+
+            <div class="search-box">
+                <input type="text" id="kbSearch" class="search-input" placeholder="ابحث عن مقال أو سؤال تقني...">
+            </div>
+
+            <div id="articlesList" class="articles-grid">
+                <!-- Articles will be loaded here -->
+                <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
+                    جاري تحميل المقالات...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="articleModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" id="closeModal">&times;</span>
+            <div id="modalBody">
+                <!-- Full article content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initCustomerSidebar } from '/assets/js/customer-sidebar.js';
+        import { supabase } from '/api-config.js';
+
+        // Initialize Sidebar
+        initCustomerSidebar((tab) => {
+            if (tab !== 'kb') {
+                window.location.href = '/customer-dashboard.html';
+            }
+        });
+
+        const articlesList = document.getElementById('articlesList');
+        const kbSearch = document.getElementById('kbSearch');
+        const articleModal = document.getElementById('articleModal');
+        const modalBody = document.getElementById('modalBody');
+        const closeModal = document.getElementById('closeModal');
+
+        let allArticles = [];
+
+        async function fetchArticles() {
+            const { data, error } = await supabase
+                .from('knowledge_base')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching articles:', error);
+                articlesList.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--color-danger);">فشل تحميل المقالات.</div>';
+                return;
+            }
+
+            allArticles = data;
+            renderArticles(allArticles);
+        }
+
+        function renderArticles(articles) {
+            if (articles.length === 0) {
+                articlesList.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--color-text-secondary);">لا توجد مقالات تطابق بحثك.</div>';
+                return;
+            }
+
+            articlesList.innerHTML = articles.map(article => `
+                <div class="article-card" onclick="window.openArticle('${article.id}')">
+                    <div class="article-category">${article.category}</div>
+                    <h3 class="article-title">${article.title}</h3>
+                    <p class="article-excerpt">${article.excerpt || article.content.substring(0, 100) + '...'}</p>
+                </div>
+            `).join('');
+        }
+
+        window.openArticle = (id) => {
+            const article = allArticles.find(a => a.id === id);
+            if (!article) return;
+
+            modalBody.innerHTML = `
+                <div class="article-category" style="margin-bottom: 0.5rem;">${article.category}</div>
+                <h2 style="margin-bottom: 1.5rem; font-size: 2rem;">${article.title}</h2>
+                <div class="article-full-content">${article.content}</div>
+                <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-secondary);">
+                    آخر تحديث: ${new Date(article.updated_at).toLocaleDateString('ar-EG')}
+                </div>
+            `;
+            articleModal.classList.add('active');
+        };
+
+        closeModal.onclick = () => articleModal.classList.remove('active');
+        window.onclick = (e) => { if (e.target === articleModal) articleModal.classList.remove('active'); };
+
+        kbSearch.oninput = (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allArticles.filter(a => 
+                a.title.toLowerCase().includes(term) || 
+                a.content.toLowerCase().includes(term) ||
+                a.category.toLowerCase().includes(term)
+            );
+            renderArticles(filtered);
+        };
+
+        // Realtime setup
+        supabase
+            .channel('kb_changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'knowledge_base' }, () => {
+                fetchArticles();
+            })
+            .subscribe();
+
+        // Initial load
+        fetchArticles();
+    </script>
+</body>
+</html>

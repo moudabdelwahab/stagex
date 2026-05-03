@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة أخطاء الموقع - مدعوم</title>
+    <link rel="icon" type="image/png" href="/assets/images/logo.png">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/robot.css">
+    <link rel="stylesheet" href="/assets/js/admin/admin-style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .errors-container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .filters-bar { 
+            background: var(--color-surface); 
+            padding: 1.5rem; 
+            border-radius: 1rem; 
+            margin-bottom: 2rem; 
+            display: flex; 
+            gap: 1rem; 
+            flex-wrap: wrap;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--color-border);
+        }
+        .filter-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .filter-group label { font-size: 0.85rem; font-weight: 700; color: var(--color-text-secondary); }
+        .filter-group select, .filter-group input {
+            padding: 0.6rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-text);
+            min-width: 150px;
+            font-family: inherit;
+        }
+        .error-card {
+            background: var(--color-surface);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-right: 5px solid var(--color-danger);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+            border: 1px solid var(--color-border);
+            border-right-width: 5px;
+        }
+        .error-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+        .error-card.resolved { border-right-color: var(--color-success); opacity: 0.8; }
+        .error-card.archived { border-right-color: var(--color-text-secondary); opacity: 0.6; }
+        .error-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .error-type { 
+            padding: 0.25rem 0.75rem; 
+            border-radius: 2rem; 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            text-transform: uppercase;
+        }
+        .type-js { background: #fef3c7; color: #92400e; }
+        .type-promise { background: #e0e7ff; color: #3730a3; }
+        .type-network { background: #fee2e2; color: #991b1b; }
+        .error-meta { font-size: 0.85rem; color: var(--color-text-secondary); display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .error-message { font-weight: 700; font-size: 1.1rem; margin: 0.5rem 0; color: var(--color-text); word-break: break-all; }
+        .stack-trace {
+            background: #1e293b;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            direction: ltr;
+            display: none;
+            border: 1px solid #334155;
+        }
+        .actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; border-top: 1px solid var(--color-border); padding-top: 1rem; }
+        .btn-sm { padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 0.5rem; cursor: pointer; border: none; font-weight: 700; transition: all 0.2s; font-family: inherit; }
+        .btn-resolve { background: var(--color-success); color: white; }
+        .btn-resolve:hover { background: #16a34a; }
+        .btn-archive { background: var(--color-text-secondary); color: white; }
+        .btn-archive:hover { background: #4b5563; }
+        .btn-toggle-stack { background: var(--color-accent); color: white; }
+        .btn-toggle-stack:hover { background: #2563eb; }
+        .realtime-badge {
+            background: var(--color-success);
+            color: white;
+            padding: 0.4rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .pulse-dot { width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+        .error-badge-new { background: var(--color-danger); color: white; padding: 0.1rem 0.5rem; border-radius: 0.25rem; font-size: 0.7rem; margin-right: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div id="sidebar-container"></div>
+
+    <main class="admin-main">
+        <div class="errors-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h1 style="font-size: 2.2rem; font-weight: 800; margin: 0;">تتبع أخطاء الموقع</h1>
+                    <p style="color: var(--color-text-secondary); margin-top: 0.5rem; font-size: 1.1rem;">مراقبة وتحليل الأخطاء البرمجية والشبكية في الوقت الفعلي</p>
+                </div>
+                <div id="realtimeStatus" class="realtime-badge">
+                    <div class="pulse-dot"></div>
+                    <span>متصل بالبث المباشر</span>
+                </div>
+            </div>
+
+            <div class="filters-bar">
+                <div class="filter-group">
+                    <label>نوع الخطأ</label>
+                    <select id="filterType">
+                        <option value="all">الكل</option>
+                        <option value="js">JavaScript</option>
+                        <option value="promise">Promises</option>
+                        <option value="network">Network / API</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>الحالة</label>
+                    <select id="filterStatus">
+                        <option value="new">جديد</option>
+                        <option value="resolved">تم الحل</option>
+                        <option value="archived">مؤرشف</option>
+                        <option value="all">الكل</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="flex-grow: 1;">
+                    <label>بحث</label>
+                    <input type="text" id="searchInput" placeholder="بحث في الرسالة، الرابط، أو الـ Stack Trace...">
+                </div>
+                <div class="filter-group" style="justify-content: flex-end;">
+                    <button class="btn-sm btn-toggle-stack" onclick="loadErrors()" style="height: 42px;">تحديث القائمة</button>
+                </div>
+            </div>
+
+            <div id="errorsList">
+                <div style="text-align: center; padding: 5rem;">
+                    <div class="pulse-dot" style="width: 20px; height: 20px; background: var(--color-accent); margin: 0 auto 1rem;"></div>
+                    <p style="color: var(--color-text-secondary);">جاري تحميل الأخطاء...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initSidebar } from '/assets/js/admin/sidebar.js';
+        import { errorService } from '/error-service.js';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSidebar();
+            loadErrors();
+            setupRealtime();
+            
+            document.getElementById('filterType').addEventListener('change', loadErrors);
+            document.getElementById('filterStatus').addEventListener('change', loadErrors);
+            document.getElementById('searchInput').addEventListener('input', debounce(loadErrors, 500));
+        });
+
+        async function loadErrors() {
+            const filters = {
+                type: document.getElementById('filterType').value,
+                status: document.getElementById('filterStatus').value,
+                search: document.getElementById('searchInput').value
+            };
+
+            try {
+                const { data, count } = await errorService.fetchErrors(filters);
+                renderErrors(data);
+            } catch (err) {
+                console.error('Failed to load errors:', err);
+                document.getElementById('errorsList').innerHTML = `
+                    <div style="color: var(--color-danger); text-align: center; padding: 3rem; background: var(--color-surface); border-radius: 1rem; border: 1px solid var(--color-border);">
+                        <h3>فشل تحميل البيانات</h3>
+                        <p>${err.message}</p>
+                        <button class="btn-sm btn-toggle-stack" onclick="location.reload()" style="margin-top: 1rem;">إعادة المحاولة</button>
+                    </div>`;
+            }
+        }
+
+        function renderErrors(errors) {
+            const container = document.getElementById('errorsList');
+            if (!errors || errors.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 5rem; background: var(--color-surface); border-radius: 1rem; border: 1px solid var(--color-border);">
+                        <svg viewBox="0 0 24 24" width="48" height="48" stroke="var(--color-text-secondary)" stroke-width="1" fill="none" style="margin-bottom: 1rem;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <p style="color: var(--color-text-secondary); font-size: 1.1rem;">لا توجد أخطاء تطابق الفلاتر المختارة</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = errors.map(err => `
+                <div class="error-card ${err.status}" id="error-${err.id}">
+                    <div class="error-header">
+                        <div style="display: flex; align-items: center;">
+                            <span class="error-type type-${err.type}">${err.type}</span>
+                            ${err.status === 'new' ? '<span class="error-badge-new">جديد</span>' : ''}
+                        </div>
+                        <span style="font-size: 0.85rem; color: var(--color-text-secondary); font-weight: 600;">${new Date(err.created_at).toLocaleString('ar-EG')}</span>
+                    </div>
+                    <div class="error-message">${err.message}</div>
+                    <div class="error-meta">
+                        <span>📍 <b>الرابط:</b> <a href="${err.page_url}" target="_blank" style="color: var(--color-accent); text-decoration: none;">${err.page_url}</a></span>
+                        ${err.file_name ? `<span>📄 <b>المصدر:</b> ${err.file_name}${err.line_number ? `:${err.line_number}:${err.column_number}` : ''}</span>` : ''}
+                        <span>👤 <b>المستخدم:</b> ${err.user_id ? `<code style="background: var(--color-muted); padding: 2px 5px; border-radius: 3px;">${err.user_id}</code>` : 'زائر'}</span>
+                    </div>
+                    <div class="stack-trace" id="stack-${err.id}">${err.stack_trace || 'لا توجد تفاصيل إضافية (Stack Trace)'}</div>
+                    <div class="actions">
+                        <button class="btn-sm btn-toggle-stack" onclick="toggleStack('${err.id}')">عرض التفاصيل / Stack</button>
+                        ${err.status === 'new' ? `
+                            <button class="btn-sm btn-resolve" onclick="updateStatus('${err.id}', 'resolved')">تم الحل</button>
+                            <button class="btn-sm btn-archive" onclick="updateStatus('${err.id}', 'archived')">أرشفة</button>
+                        ` : `
+                            <button class="btn-sm btn-archive" onclick="updateStatus('${err.id}', 'new')">إعادة فتح</button>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function setupRealtime() {
+            errorService.subscribeToErrors((newError) => {
+                const statusBadge = document.getElementById('realtimeStatus');
+                const statusText = statusBadge.querySelector('span');
+                
+                statusBadge.style.background = 'var(--color-danger)';
+                statusText.textContent = 'خطأ جديد تم رصده!';
+                
+                setTimeout(() => {
+                    statusBadge.style.background = 'var(--color-success)';
+                    statusText.textContent = 'متصل بالبث المباشر';
+                }, 5000);
+
+                // Auto refresh if on first page
+                loadErrors();
+            });
+        }
+
+        window.toggleStack = (id) => {
+            const el = document.getElementById(`stack-${id}`);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        };
+
+        window.updateStatus = async (id, status) => {
+            try {
+                await errorService.updateStatus(id, status);
+                loadErrors();
+            } catch (err) {
+                alert('فشل تحديث الحالة: ' + err.message);
+            }
+        };
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+</html>

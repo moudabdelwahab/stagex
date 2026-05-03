@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التحقق بخطوتين - منصة مدعوم</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="auth.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .verification-code-input {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin: 2rem 0;
+            direction: ltr;
+        }
+        .code-digit {
+            width: 45px;
+            height: 55px;
+            border: 2px solid var(--color-border);
+            border-radius: 0.75rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--color-surface);
+            color: var(--color-text);
+            transition: all 0.2s;
+        }
+        .code-digit:focus {
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.1);
+            outline: none;
+        }
+        .auth-card {
+            max-width: 450px;
+        }
+        .recovery-link {
+            display: block;
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            text-decoration: none;
+        }
+        .recovery-link:hover {
+            color: var(--color-accent);
+        }
+        .trust-device-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+        }
+        .trust-device-wrapper input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('theme-preference') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</head>
+<body class="auth-wrapper">
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="/assets/images/logo.png" alt="Logo" class="logo-image">
+                <span>منصة مدعوم</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="auth-container">
+        <section class="auth-card">
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div style="width: 64px; height: 64px; background: rgba(var(--color-accent-rgb), 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; color: var(--color-accent);">
+                    <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                </div>
+                <h1>التحقق بخطوتين</h1>
+                <p class="auth-subtitle">أدخل الرمز المكون من 6 أرقام من تطبيق المصادقة الخاص بك</p>
+            </div>
+
+            <div id="errorMessage" class="message-box message-error" style="display:none;">
+                <p id="errorText"></p>
+            </div>
+
+            <form id="verifyForm">
+                <div class="verification-code-input">
+                    <input type="text" class="code-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                    <input type="text" class="code-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                    <input type="text" class="code-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                    <input type="text" class="code-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                    <input type="text" class="code-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                    <input type="text" class="code-digit" maxlength="1" pattern="\d*" inputmode="numeric" required>
+                </div>
+
+                <label class="trust-device-wrapper">
+                    <input type="checkbox" id="trustDevice">
+                    <span>ثق بهذا الجهاز لمدة 30 يومًا</span>
+                </label>
+
+                <button type="submit" class="btn btn-primary" id="verifyBtn" style="width: 100%;">
+                    <span id="btnText">تحقق ودخول</span>
+                    <span id="btnLoader" style="display:none;">جاري التحقق...</span>
+                </button>
+            </form>
+
+            <a href="#" class="recovery-link" id="useRecoveryCode">استخدام رمز الاستعادة؟</a>
+            
+            <div style="margin-top: 2rem; text-align: center;">
+                <button type="button" class="btn btn-secondary" id="cancelBtn" style="width: 100%;">إلغاء والعودة</button>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        import { supabase } from './api-config.js';
+        import { addTrustedDevice } from './2fa-service.js';
+
+        const form = document.getElementById('verifyForm');
+        const digits = document.querySelectorAll('.code-digit');
+        const btn = document.getElementById('verifyBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const trustDeviceCheckbox = document.getElementById('trustDevice');
+
+        // Handle digit inputs
+        digits.forEach((digit, index) => {
+            digit.addEventListener('input', (e) => {
+                if (e.target.value && index < digits.length - 1) {
+                    digits[index + 1].focus();
+                }
+            });
+
+            digit.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    digits[index - 1].focus();
+                }
+            });
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const code = Array.from(digits).map(d => d.value).join('');
+            if (code.length !== 6) return;
+
+            setLoading(true);
+            errorMessage.style.display = 'none';
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) throw new Error('لم يتم العثور على جلسة نشطة. يرجى تسجيل الدخول مرة أخرى.');
+
+                // Retrieve tempSecret from sessionStorage
+                const tempSecret = sessionStorage.getItem('tempSecret');
+                if (!tempSecret) {
+                    throw new Error('انتهت صلاحية جلسة التحقق. يرجى تسجيل الدخول مرة أخرى.');
+                }
+
+                // Verify via Edge Function
+                const { data, error } = await supabase.functions.invoke('verify-2fa', {
+                    body: { code, tempSecret }
+                });
+
+                if (error) {
+                    console.error('Verify 2FA Error:', error);
+                    throw new Error('حدث خطأ أثناء الاتصال بخادم التحقق. يرجى المحاولة لاحقاً.');
+                }
+
+                if (data.verified !== true) {
+                    throw new Error('رمز التحقق غير صحيح. حاول مرة أخرى.');
+                }
+
+                // Clear tempSecret after successful verification
+                sessionStorage.removeItem('tempSecret');
+
+                // If trust device is checked
+                if (trustDeviceCheckbox.checked) {
+                    const fingerprint = Math.random().toString(36).substring(2, 15);
+                    localStorage.setItem('device_fingerprint', fingerprint);
+                    
+                    // Get user's IP address
+                    let ipAddress = null;
+                    try {
+                        const ipResponse = await fetch('https://api.ipify.org?format=json');
+                        const ipData = await ipResponse.json();
+                        ipAddress = ipData.ip;
+                    } catch (e) {
+                        console.error('Failed to get IP:', e);
+                    }
+                    
+                    await addTrustedDevice(user.id, navigator.userAgent, fingerprint, ipAddress);
+                }
+
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                const role = profile?.role || 'customer';
+                const target = (role === 'admin' || role === 'support' || role === 'super_user') ? 'admin-dashboard.html' : 'customer-dashboard.html';
+                
+                window.location.replace(target);
+
+            } catch (err) {
+                setLoading(false);
+                errorMessage.style.display = 'block';
+                errorText.textContent = err.message || 'رمز التحقق غير صحيح. حاول مرة أخرى.';
+            }
+        });
+
+        function setLoading(state) {
+            btn.disabled = state;
+            btnText.style.display = state ? 'none' : 'inline';
+            btnLoader.style.display = state ? 'inline' : 'none';
+            digits.forEach(d => d.disabled = state);
+        }
+
+        document.getElementById('cancelBtn').onclick = async (e) => {
+            e.preventDefault();
+            await supabase.auth.signOut();
+            window.location.href = 'sign-in.html';
+        };
+
+        document.getElementById('useRecoveryCode').onclick = (e) => {
+            e.preventDefault();
+            const code = prompt('أدخل رمز الاستعادة الخاص بك:');
+            if (code) {
+                // Implement recovery code logic here
+                alert('جاري التحقق من رمز الاستعادة...');
+            }
+        };
+    </script>
+</body>
+</html>

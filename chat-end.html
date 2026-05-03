@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تم إنهاء المحادثة</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ==================== Chat End Page Styles ==================== */
+        body {
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+
+        .chat-end-container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        /* ==================== Countdown Timer ==================== */
+        .countdown-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #0077CC 0%, #0055AA 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 119, 204, 0.3);
+            border: 3px solid #0055AA;
+        }
+
+        .countdown-badge.warning {
+            background: linear-gradient(135deg, #E0A800 0%, #D4941E 100%);
+            border-color: #D4941E;
+            box-shadow: 0 4px 15px rgba(224, 168, 0, 0.3);
+        }
+
+        .countdown-badge.danger {
+            background: linear-gradient(135deg, #D9534F 0%, #C9302C 100%);
+            border-color: #C9302C;
+            box-shadow: 0 4px 15px rgba(217, 83, 79, 0.3);
+        }
+
+        /* ==================== Main Content ==================== */
+        .chat-end-header {
+            margin-bottom: 30px;
+            margin-top: 20px;
+        }
+
+        .chat-end-header h1 {
+            font-size: 28px;
+            color: #003366;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .chat-end-header p {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* ==================== Redirect Button ==================== */
+        .redirect-btn-container {
+            margin: 30px 0;
+        }
+
+        .redirect-btn {
+            display: inline-block;
+            padding: 14px 40px;
+            background: linear-gradient(135deg, #0077CC 0%, #0055AA 100%);
+            color: white;
+            border: 2px solid #0055AA;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 119, 204, 0.3);
+        }
+
+        .redirect-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 119, 204, 0.4);
+            background: linear-gradient(135deg, #0055AA 0%, #003366 100%);
+        }
+
+        /* ==================== Rating Section ==================== */
+        .rating-section {
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            background: #FAFAFA;
+        }
+
+        .rating-title {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .stars-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .star {
+            font-size: 32px;
+            color: #CCCCCC;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .star:hover,
+        .star.active {
+            color: #FFD700;
+            transform: scale(1.2);
+        }
+
+        .rating-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #999;
+            margin-top: 10px;
+        }
+
+        /* ==================== Security Section ==================== */
+        .security-section {
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            text-align: right;
+        }
+
+        .security-icon-container {
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            background: rgba(0, 119, 204, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .security-icon-svg {
+            width: 28px;
+            height: 28px;
+            fill: #0077CC;
+        }
+
+        .security-content {
+            flex: 1;
+        }
+
+        .security-text {
+            font-size: 13px;
+            color: #444;
+            line-height: 1.6;
+            margin: 0;
+            font-weight: 500;
+        }
+
+        /* ==================== Countdown Info ==================== */
+        .countdown-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .countdown-info strong {
+            color: #0077CC;
+            font-weight: 600;
+        }
+
+        /* ==================== Animation ==================== */
+        @keyframes pulse {
+            0% { box-shadow: 0 4px 15px rgba(217, 83, 79, 0.3); }
+            50% { box-shadow: 0 4px 25px rgba(217, 83, 79, 0.5); }
+            100% { box-shadow: 0 4px 15px rgba(217, 83, 79, 0.3); }
+        }
+
+        .countdown-badge.pulse {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-end-container {
+            animation: slideIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-end-container">
+        <!-- Countdown Badge -->
+        <div class="countdown-badge" id="countdownBadge">
+            <span id="countdownNumber">60</span>
+        </div>
+
+        <!-- Header -->
+        <div class="chat-end-header">
+            <h1>تم إنهاء المحادثة</h1>
+            <p>لقد أنهيت المحادثة بنجاح.</p>
+        </div>
+
+        <!-- Redirect Button -->
+        <div class="redirect-btn-container">
+            <a href="customer-dashboard.html" class="redirect-btn" id="redirectBtn">
+                الرجوع إلى لوحة العميل
+            </a>
+        </div>
+
+        <!-- Rating Section -->
+        <div class="rating-section">
+            <div class="rating-title">كيف كانت جودة الخدمة في هذه المحادثة؟</div>
+            <div class="stars-container" id="starsContainer">
+                <span class="star" data-rating="1">☆</span>
+                <span class="star" data-rating="2">☆</span>
+                <span class="star" data-rating="3">☆</span>
+                <span class="star" data-rating="4">☆</span>
+                <span class="star" data-rating="5">☆</span>
+            </div>
+            <div class="rating-labels">
+                <span>سيء جداً</span>
+                <span>ممتاز</span>
+            </div>
+        </div>
+
+        <!-- Security Section -->
+        <div class="security-section">
+            <div class="security-icon-container">
+                <svg class="security-icon-svg" viewBox="0 0 24 24">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>
+            </div>
+            <div class="security-content">
+                <p class="security-text">هذه المحادثة مؤمنه ولا يمكن لاي شخص الوصول الي محتواها غيرك وبمجرد اغلاقها لا يمكن تذكرها</p>
+            </div>
+        </div>
+
+        <!-- Countdown Info -->
+        <div class="countdown-info">
+            سيتم تحويلك إلى لوحة العميل بعد <strong id="countdownText">60 ثانية</strong>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Countdown Logic ====================
+        let countdownSeconds = 60;
+        const redirectUrl = 'customer-dashboard.html';
+        const countdownBadge = document.getElementById('countdownBadge');
+        const countdownNumber = document.getElementById('countdownNumber');
+        const countdownText = document.getElementById('countdownText');
+        const redirectBtn = document.getElementById('redirectBtn');
+        
+        let hasRedirected = false;
+
+        const countdownInterval = setInterval(() => {
+            if (hasRedirected) return;
+            
+            countdownSeconds--;
+            countdownNumber.textContent = countdownSeconds;
+            countdownText.textContent = countdownSeconds + ' ثانية';
+
+            if (countdownSeconds <= 10) {
+                countdownBadge.classList.add('danger', 'pulse');
+                countdownBadge.classList.remove('warning');
+            } else if (countdownSeconds <= 20) {
+                countdownBadge.classList.add('warning');
+            }
+
+            if (countdownSeconds <= 0) {
+                clearInterval(countdownInterval);
+                performRedirect();
+            }
+        }, 1000);
+
+        function performRedirect() {
+            if (hasRedirected) return;
+            hasRedirected = true;
+            window.location.href = redirectUrl;
+        }
+
+        // ==================== Rating Stars Logic ====================
+        const stars = document.querySelectorAll('.star');
+        let selectedRating = 0;
+
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                selectedRating = star.dataset.rating;
+                updateStars(selectedRating);
+            });
+
+            star.addEventListener('mouseover', () => {
+                updateStars(star.dataset.rating);
+            });
+        });
+
+        document.getElementById('starsContainer').addEventListener('mouseleave', () => {
+            updateStars(selectedRating);
+        });
+
+        function updateStars(rating) {
+            stars.forEach(star => {
+                if (star.dataset.rating <= rating) {
+                    star.classList.add('active');
+                    star.textContent = '★';
+                } else {
+                    star.classList.remove('active');
+                    star.textContent = '☆';
+                }
+            });
+        }
+
+        // ==================== Redirect Button Logic ====================
+        redirectBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            performRedirect();
+        });
+
+        // ==================== Prevent Going Back ====================
+        history.pushState(null, null, window.location.href);
+        window.addEventListener('popstate', () => {
+            performRedirect();
+        });
+    </script>
+</body>
+</html>
