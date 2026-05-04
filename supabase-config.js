@@ -4,7 +4,7 @@
 
 export const SUPABASE_CONFIG = {
   url: "https://kbecntklwmdtyjlwgegx.supabase.co",
-  anonKey: "sb_publishable_0pvB8_xD0txjdJBkYqXMyg__jKMw71W",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiZWNudGtsd21kdHlqbHdnZWd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4Mzk2MzYsImV4cCI6MjA5MzQxNTYzNn0.AJZSdR1HtFM7f7Xm14VgxD9k1hHXU1xAaOckibu0Tms",
 };
 
 const EXPECTED_PROJECT_REF = "kbecntklwmdtyjlwgegx";
