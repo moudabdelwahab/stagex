@@ -219,6 +219,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (error) {
             console.error('خطأ في إرسال الرسالة:', error);
             alert('فشل في إرسال الرسالة');
+            return;
+        }
+
+        // استدعاء البوت تلقائياً
+        try {
+            const { data, error: botError } = await supabase.functions.invoke('huggingface-chatbot', {
+                body: { message: text, sessionId: currentSessionId }
+            });
+            if (botError) console.error('Bot Error:', botError);
+        } catch (err) {
+            console.error('Failed to call bot:', err);
         }
     }
 

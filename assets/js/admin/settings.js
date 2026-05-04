@@ -163,7 +163,7 @@ async function loadAllSettings() {
         // 10. Load API Keys
         const { data: apiKeys } = await supabase.from('api_keys').select('*').limit(1).maybeSingle();
         if (apiKeys) {
-            document.getElementById('openaiKey').value = apiKeys.openai_key || '';
+            document.getElementById('huggingfaceKey').value = apiKeys.huggingface_key || '';
             document.getElementById('telegramBotToken').value = apiKeys.telegram_token || '';
         }
 
@@ -702,7 +702,7 @@ async function saveApiKeys() {
     setLoading(btn, true);
     try {
         const keys = {
-            openai_key: document.getElementById('openaiKey').value,
+            huggingface_key: document.getElementById('huggingfaceKey').value,
             telegram_token: document.getElementById('telegramBotToken').value,
             updated_at: new Date()
         };
