@@ -3,11 +3,11 @@
 // ==============================
 
 export const SUPABASE_CONFIG = {
-  url: "https://srnelrdpqkcntbgudyto.supabase.co",
+  url: "https://kbecntklwmdtyjlwgegx.supabase.co",
   anonKey: "sb_publishable_0pvB8_xD0txjdJBkYqXMyg__jKMw71W",
 };
 
-const EXPECTED_PROJECT_REF = "srnelrdpqkcntbgudyto";
+const EXPECTED_PROJECT_REF = "kbecntklwmdtyjlwgegx";
 
 // ==============================
 // Helpers
